@@ -37,5 +37,21 @@ class Handler extends ExceptionHandler
         $this->reportable(function (Throwable $e) {
             //
         });
+        // $this->renderable(function(Exception $exception, $request) {
+            // findOrFail Exception handler
+            // if ( $exception instanceof ModelNotFoundException) {
+            //     return (new ResponseBuilder(404, __('Sorry, We did not find your record.')))->build();
+            // }
+            // For 404 routes
+            // if ($exception instanceof NotFoundHttpException) {
+            //     return (new ResponseBuilder(404, __('Requested API not found!')))->build();
+            // }
+            // Validator validation fail Exception handling
+            // if ($exception instanceof ValidationException) {
+            //     $errors = $exception->validator->errors()->getMessages();
+            //     $firstErrorMessage = array_first($errors);
+            //     return (new ResponseBuilder(400, __($firstErrorMessage[0])))->build();
+            // }
+        // });
     }
 }

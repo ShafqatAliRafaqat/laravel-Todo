@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Validator;
 
 class APILoginController extends Controller {
 
+    use \App\Traits\WebServicesDoc;
     /**
      * Get a token via given credentials.
      *
@@ -20,11 +21,11 @@ class APILoginController extends Controller {
 
         $validator = Validator::make($request->all(),[
             'email' => 'required|email',
-            'password' => 'required|string'
+            'password' => 'required|string|min:6'
         ]);
 
         if($validator->fails()){
-            abort(400,$validator->errors()->first());
+            return responseBuilder()->error(__($validator->errors()->first()), 400, false);
         }
 
         $credentials = request(['email', 'password']);
@@ -32,21 +33,27 @@ class APILoginController extends Controller {
         $user = User::where('email',$credentials['email'])->first();
 
         if(!$user){
-            abort(401,__('Invalid username or password.'));
+            return responseBuilder()->error(__('message.general.login_error'), 404, false);
+        }
+        if($user->email_verified == 0){
+            return responseBuilder()->error(__('message.general.not_verified',["mod"=>"User"]), 401, false);
         }
 
-
         if (!Hash::check($credentials['password'], $user->password)) {
-            abort(401,__('Invalid username or password.'));
+            return responseBuilder()->error(__('message.general.login_error'), 404, false);
         }
         
         if (auth()->attempt($credentials)) {
    
-            $token = auth()->user()->createToken('user')->accessToken;
-            return response()->json(['message'=>__('Logged in successfully'),'token' => $token,'user' => auth()->user()], 200);
-   
+            $oResponse['token'] = auth()->user()->createToken('user')->accessToken;
+            $oResponse['user'] = auth()->user();
+
+            $oResponse = responseBuilder()->success(__('message.general.login',["mod"=>"User"]), $oResponse, true);
+            $this->urlRec(0, 0, $oResponse);
+            return $oResponse;  
+            
         } else {
-            abort(401,__('Invalid username or password.'));
+            return responseBuilder()->error(__('message.general.login_error'), 404, false);
         }
     }
 
@@ -61,23 +68,44 @@ class APILoginController extends Controller {
         ]);
 
         if($validator->fails()){
-            abort(400,$validator->errors()->first());
+            return responseBuilder()->error(__($validator->errors()->first()), 400, false);
         }
 
         $user = User::create([
             'name' => $input['name'],
             'email' => $input['email'],
+            'email_verified' => $input['email_verified'],
             'password' => bcrypt($input['password'])
         ]);
-
-        $token = $user->createToken('user')->accessToken;
-        return response()->json(['token' => $token,'user' => $user], 200);
+        $users = User::where('id',$user->id)->first();
+        $oResponse['token'] = $user->createToken('user')->accessToken;
+        $oResponse['user'] = $users;
+        $oResponse = responseBuilder()->success(__('message.general.create',["mod"=>"User"]), $oResponse, true);
+        $this->urlRec(0, 1, $oResponse);
+        return $oResponse;
     }
 
-    public function logout(Request $request)
+    public function logout()
     {
         $user = Auth::user()->token();
         $user->revoke();
-        return response()->json(['message' => __('Successfully logged out')], 200);; // modify as per your need
+        $oResponse = responseBuilder()->success(__('message.general.logout'));
+        $this->urlRec(0, 2, $oResponse);
+        return $oResponse;
+    }
+    public function deleteUser($id)
+    {
+        $user = User::findOrFail($id)->delete();
+        $oResponse = responseBuilder()->success(__('message.general.delete',["mod"=>"User"]));
+        $this->urlRec(0, 3, $oResponse);
+        return $oResponse;
+    }
+    public function allUsers()
+    {
+        $users = User::all();
+        $oResponse['users'] = $users;
+        $oResponse = responseBuilder()->success(__('All User'), $oResponse, true);
+        $this->urlRec(0, 4, $oResponse);
+        return $oResponse;
     }
 }

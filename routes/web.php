@@ -1,7 +1,5 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -16,3 +14,11 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return view('welcome');
 });
+
+Route::group(['prefix' => 'docs'], function(){
+    Route::get('/', 'DocsController@index')->name('api-list');
+    Route::get('/{id}', 'DocsController@detail')->name('api-detail');
+    
+});
+
+Route::get('/storage/{folder_name}/{year}/{month_name}/{filePath}', 'DocsController@filePath')->where(['filePath' => '.*']);
