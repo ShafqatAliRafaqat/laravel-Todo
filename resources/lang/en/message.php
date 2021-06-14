@@ -9,6 +9,7 @@ return [
         'exception' => 'Unexpcted error found, please try again.',
         'validation_fail' => 'Validation on user input data failed.',
         'not_verified' => ':mod not verified',
+        'verified' => ':mod verified',
         'create' => ':mod created successfully.',
         'update' => ':mod updated successfully.',
         'delete' => ':mod deleted successfully.',
@@ -20,6 +21,7 @@ return [
         'restore' => ':mod restored successfully.',
         'permanentDelete' => ':mod deleted permanently successfully.',
         'already' => 'The :mod has already been taken.',
-        'notFind' => 'Sorry, We did not find your record.'
+        'notFind' => 'Sorry, We did not find your record.',
+        'code_expired'=> 'User Enterd Code is Expired, Kindly, Re-send code'
     ],
 ];

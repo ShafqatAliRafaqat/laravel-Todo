@@ -15,8 +15,8 @@ return [
                 'Admin Login',                      //0
                 'Registration',                     //1
                 'Admin Logout',                     //2
-                'Delete User',                      //3
-                'All Users',                        //4
+                'Code Verification',                //3
+                'Resend Code',                      //4
             ],
         ],
     1 =>[   'title'=>"ToDos",

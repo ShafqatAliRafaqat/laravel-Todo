@@ -2,11 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\SendCode;
+use App\Models\EmailVerification;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Mail;
 
 class APILoginController extends Controller {
 
@@ -36,7 +40,7 @@ class APILoginController extends Controller {
             return responseBuilder()->error(__('message.general.login_error'), 404, false);
         }
         if($user->email_verified == 0){
-            return responseBuilder()->error(__('message.general.not_verified',["mod"=>"User"]), 401, false);
+            return responseBuilder()->success(__('message.general.not_verified',["mod"=>"User"]), $user, false);
         }
 
         if (!Hash::check($credentials['password'], $user->password)) {
@@ -74,12 +78,24 @@ class APILoginController extends Controller {
         $user = User::create([
             'name' => $input['name'],
             'email' => $input['email'],
-            'email_verified' => $input['email_verified'],
+            'email_verified' => 0,
             'password' => bcrypt($input['password'])
         ]);
-        $users = User::where('id',$user->id)->first();
-        $oResponse['token'] = $user->createToken('user')->accessToken;
-        $oResponse['user'] = $users;
+
+        $code = rand(100000,999999);
+        $current_time = Carbon::now()->addMinutes(5)->toDateTimeString();
+
+        EmailVerification::create([
+            'user_id' => $user->id,
+            'code' => $code,
+            'is_used' => 0,
+            'expire_at' => $current_time,
+        ]);
+        
+        $user['code'] = $code;
+        Mail::to($user->email)->send(new SendCode($user));
+
+        $oResponse['user'] = $user;
         $oResponse = responseBuilder()->success(__('message.general.create',["mod"=>"User"]), $oResponse, true);
         $this->urlRec(0, 1, $oResponse);
         return $oResponse;
@@ -93,18 +109,78 @@ class APILoginController extends Controller {
         $this->urlRec(0, 2, $oResponse);
         return $oResponse;
     }
-    public function deleteUser($id)
-    {
-        $user = User::findOrFail($id)->delete();
-        $oResponse = responseBuilder()->success(__('message.general.delete',["mod"=>"User"]));
+    public function codeVerification(Request $request){
+        
+        $input = $request->all();
+
+        $validator = Validator::make($input,[
+            'code' => 'required|integer|max:8|min:8',
+            'user_id' => 'required|exists:users,id',
+        ]);
+
+        if($validator->fails()){
+            return responseBuilder()->error(__($validator->errors()->first()), 400, false);
+        }
+        $current_time = Carbon::now()->toDateTimeString();
+        $code_verification = EmailVerification::where(['user_id'=>$input['user_id'], 'code'=>$input['code']])->first();
+        
+        if(!$code_verification){
+            return responseBuilder()->error(__('message.general.notFind',['mod'=>'User']), 404, false);
+        }
+        if($code_verification->is_used == 1){
+            return responseBuilder()->error(__('message.general.already',['mod'=>'Code']), 404, false);
+        }
+        if($current_time > $code_verification->expire_at){
+            return responseBuilder()->error(__('message.general.code_expired'), 404, false);
+        }
+
+        
+        $user = User::where('id',$input['user_id'])->first();
+        $code_verification->update(['is_used'=>1]);
+        $user->update(['email_verified'=>1]);
+
+        $oResponse['token'] = $user->createToken('user')->accessToken;
+        $oResponse['user'] = $user;
+
+        $oResponse = responseBuilder()->success(__('message.general.verified',["mod"=>"User"]), $oResponse, true);
         $this->urlRec(0, 3, $oResponse);
-        return $oResponse;
+        return $oResponse;  
     }
-    public function allUsers()
+
+    public function reSendCode(Request $request)
     {
-        $users = User::all();
-        $oResponse['users'] = $users;
-        $oResponse = responseBuilder()->success(__('All User'), $oResponse, true);
+        $input = $request->all();
+
+        $validator = Validator::make($input,[
+            'user_id' => 'required|exists:users,id',
+        ]);
+
+        if($validator->fails()){
+            return responseBuilder()->error(__($validator->errors()->first()), 400, false);
+        }
+        $code = rand(100000,999999);
+        $current_time = Carbon::now()->addMinutes(5)->toDateTimeString();
+        
+        $previous_code = EmailVerification::where('user_id',$input['user_id'])->first();
+        if(!$previous_code){
+            return responseBuilder()->error(__('message.general.notFind',['mod'=>'User']), 404, false);
+        }
+        
+        $previous_code->update(['is_used'=>1]);
+        
+        EmailVerification::create([
+            'user_id' => $input['user_id'],
+            'code' => $code,
+            'is_used' => 0,
+            'expire_at' => $current_time,
+        ]);
+        
+        $user = User::where('id',$input['user_id'])->first();
+
+        $user['code'] = $code;
+        Mail::to($user->email)->send(new SendCode($user));
+        
+        $oResponse = responseBuilder()->success(__('message.general.create',["mod"=>"User"]));
         $this->urlRec(0, 4, $oResponse);
         return $oResponse;
     }
