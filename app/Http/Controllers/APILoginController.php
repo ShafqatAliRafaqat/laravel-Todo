@@ -49,8 +49,9 @@ class APILoginController extends Controller {
         
         if (auth()->attempt($credentials)) {
    
-            $oResponse['token'] = auth()->user()->createToken('user')->accessToken;
-            $oResponse['user'] = auth()->user();
+            $user = auth()->user();
+            $user['access_token'] = auth()->user()->createToken('user')->accessToken;
+            $oResponse['user'] = $user;
 
             $oResponse = responseBuilder()->success(__('message.general.login',["mod"=>"User"]), $oResponse, true);
             $this->urlRec(0, 0, $oResponse);
@@ -139,7 +140,7 @@ class APILoginController extends Controller {
         $code_verification->update(['is_used'=>1]);
         $user->update(['email_verified'=>1]);
 
-        $oResponse['token'] = $user->createToken('user')->accessToken;
+        $user['access_token'] = auth()->user()->createToken('user')->accessToken;
         $oResponse['user'] = $user;
 
         $oResponse = responseBuilder()->success(__('message.general.verified',["mod"=>"User"]), $oResponse, true);

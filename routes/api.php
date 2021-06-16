@@ -24,7 +24,7 @@ use Illuminate\Support\Facades\Route;
 
     Route::group(['middleware' => 'auth:api' ], function () {
         
-        Route::get('logout', 'APILoginController@logout')->name('logout');
+        Route::post('logout', 'APILoginController@logout')->name('logout');
 
         // ToDo
         Route::resource('todos',  'ToDoController');
