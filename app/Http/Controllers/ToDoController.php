@@ -19,7 +19,7 @@ class ToDoController extends Controller
     {
         $oInput = $request->all();
 
-        $oQb = ToDo::with(['createdBy','updatedBy'])->orderByDesc('updated_at');
+        $oQb = ToDo::with(['createdBy','updatedBy'])->where('created_by',Auth::user()->id)->orderByDesc('updated_at');
         $oQb = QB::where($oInput,"id",$oQb);
         $oQb = QB::whereLike($oInput,"title",$oQb);
         $oQb = QB::whereLike($oInput,"description",$oQb);
@@ -64,7 +64,7 @@ class ToDoController extends Controller
     public function show($id)
     {
 
-        $oToDo= ToDo::with(['createdBy','updatedBy'])->findOrFail($id);
+        $oToDo= ToDo::with(['createdBy','updatedBy'])->where('created_by',Auth::user()->id)->findOrFail($id);
 
         $oResponse = responseBuilder()->success(__('message.general.detail',["mod"=>"ToDo"]), $oToDo, false);
         $this->urlRec(1, 2, $oResponse);
@@ -85,7 +85,7 @@ class ToDoController extends Controller
             return responseBuilder()->error(__($oValidator->errors()->first()), 400, false);
         }
 
-        $oToDo = ToDo::where('created_by',auth()->id)->findOrFail($id); 
+        $oToDo = ToDo::where('created_by',Auth::user()->id)->findOrFail($id); 
 
         $oToDos = $oToDo->update([
             'title'         =>  $oInput['title'],
@@ -106,7 +106,7 @@ class ToDoController extends Controller
 
     public function destroy($id)
     {
-        $oToDo = ToDo::where('created_by',auth()->id)->findOrFail($id);
+        $oToDo = ToDo::where('created_by',Auth::user()->id)->findOrFail($id);
         $oToDo->delete();
         $oResponse = responseBuilder()->success(__('message.general.delete',["mod"=>"ToDo"]));
         $this->urlRec(1, 4, $oResponse);

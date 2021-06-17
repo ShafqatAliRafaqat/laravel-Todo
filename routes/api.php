@@ -21,6 +21,8 @@ use Illuminate\Support\Facades\Route;
     });
     Route::POST('login', 'APILoginController@login');
     Route::post('register', 'APILoginController@register');
+    Route::post('verification', 'APILoginController@codeVerification');
+    Route::post('re-send', 'APILoginController@reSendCode');
 
     Route::group(['middleware' => 'auth:api' ], function () {
         
@@ -28,4 +30,5 @@ use Illuminate\Support\Facades\Route;
 
         // ToDo
         Route::resource('todos',  'ToDoController');
+        Route::post('todo/{id}',  'ToDoController@update');
     });

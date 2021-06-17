@@ -69,7 +69,7 @@ class APILoginController extends Controller {
         $validator = Validator::make($input,[
             'name' => 'required|max:255',
             'email' => 'required|email|unique:users',
-            'password' => 'required|string|min:6'
+            'password' => 'required|string|min:8'
         ]);
 
         if($validator->fails()){
@@ -94,7 +94,7 @@ class APILoginController extends Controller {
         ]);
         
         $user['code'] = $code;
-        Mail::to($user->email)->send(new SendCode($user));
+        // Mail::to($user->email)->send(new SendCode($user));
 
         $oResponse['user'] = $user;
         $oResponse = responseBuilder()->success(__('message.general.create',["mod"=>"User"]), $oResponse, true);
@@ -115,17 +115,20 @@ class APILoginController extends Controller {
         $input = $request->all();
 
         $validator = Validator::make($input,[
-            'code' => 'required|integer|max:8|min:8',
-            'user_id' => 'required|exists:users,id',
+            'code' => 'required|integer|min:6',
         ]);
 
         if($validator->fails()){
             return responseBuilder()->error(__($validator->errors()->first()), 400, false);
         }
         $current_time = Carbon::now()->toDateTimeString();
-        $code_verification = EmailVerification::where(['user_id'=>$input['user_id'], 'code'=>$input['code']])->first();
+        $code_verification = EmailVerification::where('code',$input['code'])->first();
+        $user = User::where('id',$code_verification->user_id)->first();
         
         if(!$code_verification){
+            return responseBuilder()->error(__('message.general.notFind',['mod'=>'User']), 404, false);
+        }
+        if(!$user){
             return responseBuilder()->error(__('message.general.notFind',['mod'=>'User']), 404, false);
         }
         if($code_verification->is_used == 1){
@@ -134,13 +137,11 @@ class APILoginController extends Controller {
         if($current_time > $code_verification->expire_at){
             return responseBuilder()->error(__('message.general.code_expired'), 404, false);
         }
-
         
-        $user = User::where('id',$input['user_id'])->first();
         $code_verification->update(['is_used'=>1]);
         $user->update(['email_verified'=>1]);
 
-        $user['access_token'] = auth()->user()->createToken('user')->accessToken;
+        $user['access_token'] = $user->createToken('user')->accessToken;
         $oResponse['user'] = $user;
 
         $oResponse = responseBuilder()->success(__('message.general.verified',["mod"=>"User"]), $oResponse, true);
@@ -179,9 +180,9 @@ class APILoginController extends Controller {
         $user = User::where('id',$input['user_id'])->first();
 
         $user['code'] = $code;
-        Mail::to($user->email)->send(new SendCode($user));
+        // Mail::to($user->email)->send(new SendCode($user));
         
-        $oResponse = responseBuilder()->success(__('message.general.create',["mod"=>"User"]));
+        $oResponse = responseBuilder()->success(__('message.general.create',["mod"=>"Code"]),$user);
         $this->urlRec(0, 4, $oResponse);
         return $oResponse;
     }
