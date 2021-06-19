@@ -2,16 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\QB;
 use App\Models\ToDo;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
-use App\Helpers\QB;
-use Auth;
+use App\Http\Requests\ToDoRequest;
+use App\Http\Resources\TodoResource;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 
 class ToDoController extends Controller
 {
-    use \App\Traits\WebServicesDoc;
 
     // get list of all the ToDos
    
@@ -19,97 +20,79 @@ class ToDoController extends Controller
     {
         $oInput = $request->all();
 
-        $oQb = ToDo::with(['createdBy','updatedBy'])->where('created_by',Auth::user()->id)->orderByDesc('updated_at');
+        $oQb = ToDo::with('user')->where('user_id',Auth::user()->id)->orderByDesc('updated_at');
         $oQb = QB::where($oInput,"id",$oQb);
         $oQb = QB::whereLike($oInput,"title",$oQb);
         $oQb = QB::whereLike($oInput,"description",$oQb);
         $oToDos = $oQb->paginate(10);
         
-        $oResponse = responseBuilder()->success(__('message.general.list',["mod"=>"ToDo"]), $oToDos, false);
-        $this->urlRec(1, 0, $oResponse);
-        return $oResponse;
+        return [
+            'message'=>__('message.general.list',["mod"=>"ToDo"]),
+            'data' => TodoResource::collection($oToDos),
+        ];
     }
 
     // Store new ToDo
-    public function store(Request $request)
+    public function store(ToDoRequest $request)
     {
         $oInput = $request->all();
-
-        $oValidator = Validator::make($oInput,[
-            'title'    => 'required|max:50',
-            'description'=> 'required|max:200',
-        ]);
-
-        if($oValidator->fails()){
-            return responseBuilder()->error(__($oValidator->errors()->first()), 400, false);
-        }
         
         $oToDo = ToDo::create([
             'title'         =>  $oInput['title'],
             'description'   =>  $oInput['description'],
-            'created_by'    =>  Auth::user()->id,
-            'updated_by'    =>  Auth::user()->id,
+            'user_id'       =>  Auth::user()->id,
             'created_at'    =>  Carbon::now()->toDateTimeString(),
             'updated_at'    =>  Carbon::now()->toDateTimeString(),
         ]);
 
-        $oToDo= ToDo::with(['createdBy','updatedBy'])->findOrFail($oToDo->id);
-
-        $oResponse = responseBuilder()->success(__('message.general.create',["mod"=>"ToDo"]), $oToDo, false);
-        $this->urlRec(1, 1, $oResponse);
-        return $oResponse;
+        $oToDo= ToDo::with('user')->findOrFail($oToDo->id);
+        
+        return [
+            'message'=>__('message.general.create',["mod"=>"ToDo"]),
+            'data' => TodoResource::make($oToDo),
+        ];
     }
     // Show ToDo details
 
     public function show($id)
     {
 
-        $oToDo= ToDo::with(['createdBy','updatedBy'])->where('created_by',Auth::user()->id)->findOrFail($id);
+        $oToDo= ToDo::with('user')->where('user_id',Auth::user()->id)->findOrFail($id);
 
-        $oResponse = responseBuilder()->success(__('message.general.detail',["mod"=>"ToDo"]), $oToDo, false);
-        $this->urlRec(1, 2, $oResponse);
-        return $oResponse;
+        return [
+            'message'=>__('message.general.detail',["mod"=>"ToDo"]),
+            'data' => TodoResource::make($oToDo),
+        ];
     }
     // Update ToDo details
     
-    public function update(Request $request, $id)
+    public function update(ToDoRequest $request, $id)
     {
         $oInput = $request->all();
 
-        $oValidator = Validator::make($oInput,[
-            'title'   => 'required|max:50',
-            'description'   => 'required|max:200',
-        ]);
-
-        if($oValidator->fails()){
-            return responseBuilder()->error(__($oValidator->errors()->first()), 400, false);
-        }
-
-        $oToDo = ToDo::where('created_by',Auth::user()->id)->findOrFail($id); 
+        $oToDo = ToDo::where('user_id',Auth::user()->id)->findOrFail($id); 
 
         $oToDos = $oToDo->update([
             'title'         =>  $oInput['title'],
             'description'   =>  $oInput['description'],
-            'updated_by'    =>  Auth::user()->id,
             'updated_at'    =>  Carbon::now()->toDateTimeString(),
         ]);
-        $oToDo = ToDo::with(['createdBy','updatedBy'])->findOrFail($id);
+        $oToDo = ToDo::with('user')->findOrFail($id);
 
-        $oResponse = responseBuilder()->success(__('message.general.update',["mod"=>"ToDo"]), $oToDo, false);
-        
-        $this->urlRec(1, 3, $oResponse);
-        
-        return $oResponse;
+        return [
+            'message'=>__('message.general.update',["mod"=>"ToDo"]),
+            'data' => TodoResource::make($oToDo),
+        ];
     }
 
     // Delete ToDo 
 
     public function destroy($id)
     {
-        $oToDo = ToDo::where('created_by',Auth::user()->id)->findOrFail($id);
+        $oToDo = ToDo::where('user_id',Auth::user()->id)->findOrFail($id);
         $oToDo->delete();
-        $oResponse = responseBuilder()->success(__('message.general.delete',["mod"=>"ToDo"]));
-        $this->urlRec(1, 4, $oResponse);
-        return $oResponse;
+        return [
+            'message'=>__('message.general.delete',["mod"=>"ToDo"])
+        ];
     }
 }

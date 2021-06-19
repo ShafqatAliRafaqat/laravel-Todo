@@ -12,11 +12,8 @@ class ToDo extends Model
     
     protected $table = 'todos';
 
-    public function createdBy(){
-        return $this->belongsTo('App\Models\User','created_by','id')->select('id','name','email');
-    }
-    public function updatedBy(){
-        return $this->belongsTo('App\Models\User','updated_by','id')->select('id','name','email');
+    public function user(){
+        return $this->belongsTo('App\Models\User','user_id','id');
     }
     
 }

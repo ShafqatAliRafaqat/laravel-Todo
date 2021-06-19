@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\LoginRequest;
+use App\Http\Requests\RegisterRequest;
+use App\Http\Resources\UserTokenResource;
 use App\Mail\SendCode;
 use App\Models\EmailVerification;
 use App\Models\User;
@@ -14,67 +17,44 @@ use Mail;
 
 class APILoginController extends Controller {
 
-    use \App\Traits\WebServicesDoc;
     /**
      * Get a token via given credentials.
      *
      * @return \Illuminate\Http\JsonResponse
      */
     
-    public function login(Request $request) {
-
-        $validator = Validator::make($request->all(),[
-            'email' => 'required|email',
-            'password' => 'required|string|min:6'
-        ]);
-
-        if($validator->fails()){
-            return responseBuilder()->error(__($validator->errors()->first()), 400, false);
-        }
+    public function login(LoginRequest $request) {
 
         $credentials = request(['email', 'password']);
 
         $user = User::where('email',$credentials['email'])->first();
 
         if(!$user){
-            return responseBuilder()->error(__('message.general.login_error'), 404, false);
-        }
-        if($user->email_verified == 0){
-            return responseBuilder()->success(__('message.general.not_verified',["mod"=>"User"]), $user, false);
+            abort(404,__('message.general.notFind',["mod"=>"User"]));
         }
 
         if (!Hash::check($credentials['password'], $user->password)) {
-            return responseBuilder()->error(__('message.general.login_error'), 404, false);
+            abort(401,__('message.general.login_error'));
         }
-        
+        if($user->email_verified == 0){
+            abort(403,__('message.general.not_verified',["mod"=>"User"],$user));
+        }
         if (auth()->attempt($credentials)) {
    
-            $user = auth()->user();
-            $user['access_token'] = auth()->user()->createToken('user')->accessToken;
-            $oResponse['user'] = $user;
-
-            $oResponse = responseBuilder()->success(__('message.general.login',["mod"=>"User"]), $oResponse, true);
-            $this->urlRec(0, 0, $oResponse);
-            return $oResponse;  
-            
+            $token = $user->createToken('user')->accessToken;
+            $user->token = $token;
+            return [
+                'message'=>__('message.general.login'),
+                'data' => UserTokenResource::make($user)->toArray($request),
+            ];            
         } else {
-            return responseBuilder()->error(__('message.general.login_error'), 404, false);
+            abort(401,__('message.general.login_error'));
         }
     }
 
-    public function register(Request $request){
+    public function register(RegisterRequest $request){
 
         $input = $request->all();
-
-        $validator = Validator::make($input,[
-            'name' => 'required|max:255',
-            'email' => 'required|email|unique:users',
-            'password' => 'required|string|min:8'
-        ]);
-
-        if($validator->fails()){
-            return responseBuilder()->error(__($validator->errors()->first()), 400, false);
-        }
 
         $user = User::create([
             'name' => $input['name'],
@@ -96,19 +76,17 @@ class APILoginController extends Controller {
         $user['code'] = $code;
         // Mail::to($user->email)->send(new SendCode($user));
 
-        $oResponse['user'] = $user;
-        $oResponse = responseBuilder()->success(__('message.general.create',["mod"=>"User"]), $oResponse, true);
-        $this->urlRec(0, 1, $oResponse);
-        return $oResponse;
+        return [
+            'message'=>__('message.general.create',['mod'=>'User']),
+            'data' => UserTokenResource::make($user)->toArray($request),
+        ];
     }
 
     public function logout()
     {
         $user = Auth::user()->token();
         $user->revoke();
-        $oResponse = responseBuilder()->success(__('message.general.logout'));
-        $this->urlRec(0, 2, $oResponse);
-        return $oResponse;
+        return response()->json(['message' => __('message.general.logout')]);
     }
     public function codeVerification(Request $request){
         
@@ -119,34 +97,34 @@ class APILoginController extends Controller {
         ]);
 
         if($validator->fails()){
-            return responseBuilder()->error(__($validator->errors()->first()), 400, false);
+            abort(400,$validator->errors()->first());
         }
         $current_time = Carbon::now()->toDateTimeString();
         $code_verification = EmailVerification::where('code',$input['code'])->first();
         $user = User::where('id',$code_verification->user_id)->first();
         
         if(!$code_verification){
-            return responseBuilder()->error(__('message.general.notFind',['mod'=>'User']), 404, false);
+            abort(404,__('message.general.notFind',["mod"=>"User"]));
         }
         if(!$user){
-            return responseBuilder()->error(__('message.general.notFind',['mod'=>'User']), 404, false);
+            abort(404,__('message.general.notFind',["mod"=>"User"]));
         }
         if($code_verification->is_used == 1){
-            return responseBuilder()->error(__('message.general.already',['mod'=>'Code']), 404, false);
+            abort(404,__('message.general.already',["mod"=>"Code"]));
         }
         if($current_time > $code_verification->expire_at){
-            return responseBuilder()->error(__('message.general.code_expired'), 404, false);
+            abort(404,__('message.general.code_expired'));
         }
         
         $code_verification->update(['is_used'=>1]);
         $user->update(['email_verified'=>1]);
 
-        $user['access_token'] = $user->createToken('user')->accessToken;
-        $oResponse['user'] = $user;
-
-        $oResponse = responseBuilder()->success(__('message.general.verified',["mod"=>"User"]), $oResponse, true);
-        $this->urlRec(0, 3, $oResponse);
-        return $oResponse;  
+        $token = $user->createToken('user')->accessToken;
+        $user->token = $token;
+        return [
+            'message'=>__('message.general.login'),
+            'data' => UserTokenResource::make($user)->toArray($request),
+        ];
     }
 
     public function reSendCode(Request $request)
@@ -158,14 +136,14 @@ class APILoginController extends Controller {
         ]);
 
         if($validator->fails()){
-            return responseBuilder()->error(__($validator->errors()->first()), 400, false);
+            abort(400,$validator->errors()->first());
         }
         $code = rand(100000,999999);
         $current_time = Carbon::now()->addMinutes(5)->toDateTimeString();
         
         $previous_code = EmailVerification::where('user_id',$input['user_id'])->first();
         if(!$previous_code){
-            return responseBuilder()->error(__('message.general.notFind',['mod'=>'User']), 404, false);
+            abort(404,__('message.general.notFind',["mod"=>"User"]));
         }
         
         $previous_code->update(['is_used'=>1]);
@@ -181,9 +159,9 @@ class APILoginController extends Controller {
 
         $user['code'] = $code;
         // Mail::to($user->email)->send(new SendCode($user));
-        
-        $oResponse = responseBuilder()->success(__('message.general.create',["mod"=>"Code"]),$user);
-        $this->urlRec(0, 4, $oResponse);
-        return $oResponse;
+        return [
+            'message'=>__('message.general.create',["mod"=>"Code"]),
+            'data' => $user,
+        ];
     }
 }

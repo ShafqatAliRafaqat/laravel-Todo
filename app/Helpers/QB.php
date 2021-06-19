@@ -13,14 +13,6 @@ class QB
 
         return $qb;
     }
-    public static function whereDate($input, $param, $qb) {
-
-        if (self::applyFilter($input, $param)) {
-            $qb->whereDate($param,'=',date($input[$param]));
-        }
-
-        return $qb;
-    }
     public static function whereLike($input, $param, $qb)
     {
 
@@ -31,15 +23,6 @@ class QB
         return $qb;
     }
 
-    public static function whereBetween($input, $param, $qb)
-    {
-        if (self::applyFilter($input, $param, $qb)) {
-            $range = ArrayHelper::getStartAndEnd($input[$param]);
-            $qb = $qb->whereBetween($param, $range);
-        }
-
-        return $qb;
-    }
 
     private static function applyFilter($input, $param)
     {
@@ -56,30 +39,6 @@ class QB
             }
         }
         return false;
-    }
-
-    public static function hasWhere($model,$qb, $field = null, $operator = null, $value = null){
-
-        $qb = $qb->whereHas($model, function ($q) use ($field, $operator, $value) {
-            if ($value || $value === '0') {
-                $q->where($field, $operator, $value);
-            }
-
-        });
-
-        return $qb;
-    }
-
-    public static function whereHasIn($model,$qb, $field = null, $value = null){
-
-        $qb = $qb->whereHas($model, function ($q) use ($field, $value) {
-            if ($value) {
-                $q->whereIn($field, $value);
-            }
-
-        });
-
-        return $qb;
     }
     
 }

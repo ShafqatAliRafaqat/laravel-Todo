@@ -62,9 +62,6 @@
     @include('flash-message')
     @if(empty($message))
     <div class="links">
-        @if((env('APP_DOC') !== false))
-            <a href="{{url('/')}}/docs">Documentation</a>
-        @endif;
         <a href="#">Laravel </a>
     </div>
     @endif

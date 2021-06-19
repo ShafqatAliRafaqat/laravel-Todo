@@ -14,11 +14,6 @@ use Illuminate\Support\Facades\Route;
 | is assigned the "api" middleware group. Enjoy building your API!
 |
 */
-    
-    Route::get('all_users', 'APILoginController@allUsers');
-    Route::get('/user', function (Request $request) {
-        return User::all();
-    });
     Route::POST('login', 'APILoginController@login');
     Route::post('register', 'APILoginController@register');
     Route::post('verification', 'APILoginController@codeVerification');
@@ -28,7 +23,7 @@ use Illuminate\Support\Facades\Route;
         
         Route::post('logout', 'APILoginController@logout')->name('logout');
 
-        // ToDo
+        // ToDo Routes
         Route::resource('todos',  'ToDoController');
         Route::post('todo/{id}',  'ToDoController@update');
     });
